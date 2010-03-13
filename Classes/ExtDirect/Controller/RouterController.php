@@ -24,12 +24,12 @@ namespace F3\ExtJS\ExtDirect\Controller;
 
 /**
  * Ext Direct router controller
+ * 
+ * TODO Check if we can avoid ActionController at all by going directly through a special request handler
  *
  * @version $Id: IncludeViewHelper.php 3736 2010-01-20 15:47:11Z k-fish $
  * @license http://www.gnu.org/licenses/lgpl.html GNU Lesser General Public License, version 3 or later
  */
-use F3\FLOW3\MVC\Controller;
-
 class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 
 	/**
@@ -69,7 +69,11 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 	protected $packageKey;
 	
 	protected $subpackageKey;
-	
+
+	/**
+	 * The router entry point
+	 * @return void
+	 */
 	public function indexAction() {
 		$this->parseRequest();
 		return $this->dispatchAndCollectResponse();
@@ -91,8 +95,6 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 			$this->data->action = $request->getArgument('extAction');
 			$this->data->method = $request->getArgument('extMethod');
 			$this->data->tid = $request->getArgument('extTID');
-			// TODO Set correct data for form post / upload
-			$this->data['data'] = array('POST', 'FILES');
 		} else {
 			throw new \F3\ExtJs\ExtDirect\Exception\InvalidExtDirectRequestException('The request is not a valid Ext Direct request', 1268490738);
 		}
@@ -102,6 +104,7 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 		if (is_array($this->data)) {
 			$response = array();
 			foreach ($this->data as $directCall) {
+				// TODO submit package and subpackage via special Ext Direct Remoting implementation
 				$directCall->packageKey = $this->packageKey;
 				$directCall->subpackageKey = $this->subpackageKey;
 				$response[] = $this->dispatchDirectCall($directCall);
@@ -111,7 +114,10 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 		}
 
 		if ($this->isForm && $this->isUpload) {
-			// TODO Encode HTML with form
+			$json = json_encode($response);
+			$json = preg_replace('/&quot;/', '\\&quot;', $json);
+
+			return '<html><body><textarea>' . $json . '</textarea></body></html>';
 		} else {
 			$this->getControllerContext()->getResponse()->setHeader('Content-Type', 'text/javascript');
 			return json_encode($response);
@@ -119,30 +125,7 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 	}
 
 	protected function dispatchDirectCall($directCall) {
-		$controllerName = $directCall->action;
-		$controllerAction = $directCall->method;
-
-		$request = $this->objectManager->create('F3\FLOW3\MVC\Web\Request');
-		$request->injectEnvironment($this->environment);
-		$request->setControllerPackageKey($directCall->packageKey);
-		$request->setControllerSubpackageKey($directCall->subpackageKey);
-		$request->setControllerName($controllerName);
-		$request->setControllerActionName($controllerAction);
-		$request->setFormat('extdirect');
-		
-		// TODO Set controller arguments from directCall->data by using reflection to map indexed array to argument names
-		
-		$controllerClass = $request->getControllerObjectName();
-		$parameters = $this->reflectionService->getMethodParameters($controllerClass, $this->request->getControllerActionName() . 'Action');
-
-		$arguments = array();
-		// TODO Add checks
-		foreach ($parameters as $name => $options) {
-			$parameterIndex = $options['position'];
-			$arguments[$name] = $directCall->data[$parameterIndex];
-		}
-		$request->setArguments($arguments);
-		
+		$request = $this->buildRequest($directCall);
 		$response = $this->objectManager->create('F3\ExtJS\ExtDirect\Response');
 
 		$this->dispatcher->dispatch($request, $response);
@@ -155,6 +138,40 @@ class RouterController extends \F3\FLOW3\MVC\Controller\ActionController {
 			'result' => $response->getResult(),
 			'success' => $response->getSuccess()
 		);
+	}
+
+	protected function buildRequest($directCall) {
+		$controllerName = $directCall->action;
+		$controllerAction = $directCall->method;
+		
+		$request = $this->objectManager->create('F3\FLOW3\MVC\Web\Request');
+		$request->injectEnvironment($this->environment);
+		$request->setControllerPackageKey($directCall->packageKey);
+		$request->setControllerSubpackageKey($directCall->subpackageKey);
+		$request->setControllerName($controllerName);
+		$request->setControllerActionName($controllerAction);
+		$request->setFormat('extdirect');
+
+		$this->setArgumentsFromDirectCall($request, $directCall);
+
+		return $request;
+	}
+
+	protected function setArgumentsFromDirectCall($request, $directCall) {
+		if (!$this->isForm) {
+			$controllerClass = $request->getControllerObjectName();
+			$parameters = $this->reflectionService->getMethodParameters($controllerClass, $this->request->getControllerActionName() . 'Action');
+	
+			$arguments = array();
+			// TODO Add checks for parameters
+			foreach ($parameters as $name => $options) {
+				$parameterIndex = $options['position'];
+				$arguments[$name] = $directCall->data[$parameterIndex];
+			}
+			$request->setArguments($arguments);
+		} else {
+			// TODO Reuse setArgumentsFromRawRequestData from Web/RequestBuilder
+		}
 	}
 }
 
