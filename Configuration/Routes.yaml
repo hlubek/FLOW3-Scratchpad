@@ -1,0 +1,15 @@
+#                                                                        #
+# Subroutes configuration for the ExtJS package                          #
+#                                                                        #
+
+# $Id: Routes.yaml 3886 2010-02-28 17:03:50Z robert $
+
+
+-
+  name: 'Ext direct router'
+  uriPattern:    'extdirect/router'
+  defaults:
+    '@package':    ExtJS
+    '@subpackage': ExtDirect
+    '@controller': Router
+    '@action': index
