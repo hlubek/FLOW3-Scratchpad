@@ -3,7 +3,7 @@ declare(ENCODING = 'utf-8');
 namespace F3\ExtJS\ExtDirect;
 
 /*                                                                        *
- * This script belongs to the FLOW3 package "ExtJS".                      *
+ * This script belongs to the FFLOW3 package "ExtJS".                     *
  *                                                                        *
  * It is free software; you can redistribute it and/or modify it under    *
  * the terms of the GNU Lesser General Public License as published by the *
@@ -23,12 +23,38 @@ namespace F3\ExtJS\ExtDirect;
  *                                                                        */
 
 /**
- * Ext Direct request handler
  *
- * @version $Id: IncludeViewHelper.php 3736 2010-01-20 15:47:11Z k-fish $
- * @license http://www.gnu.org/licenses/lgpl.html GNU Lesser General Public License, version 3 or later
+ * @version $Id: EmptyView.php 2813 2009-07-16 14:02:34Z k-fish $
  */
-class Dispatcher {
+
+/**
+ * An Ext Direct request
+ *
+ * @version $Id: EmptyView.php 2813 2009-07-16 14:02:34Z k-fish $
+ * @license http://www.gnu.org/licenses/lgpl.html GNU Lesser General Public License, version 3 or later
+ * @scope prototype
+ */
+class DirectRequest {
+	/**
+	 * The transactions inside this request
+	 *
+	 * @var array
+	 */
+	protected $transactions = array();
+
+	/**
+	 * True if this request is a form post
+	 *
+	 * @var boolean
+	 */
+	protected $formPost = FALSE;
+
+	/**
+	 * True if this request is containing a file upload
+	 *
+	 * @var boolean
+	 */
+	protected $fileUpload = FALSE;
 
 	/**
 	 * @inject
@@ -36,18 +62,39 @@ class Dispatcher {
 	 */
 	protected $objectManager;
 
-	/**
-	 * @inject
-	 * @var \F3\FLOW3\Utility\Environment
-	 */
-	protected $utilityEnvironment;
+	public function getTransactions() {
+		return $this->transactions;
+	}
 
-	/**
-	 * @inject
-	 * @var \F3\FLOW3\MVC\Web\RequestBuilder
-	 */
-	protected $requestBuilder;
+	public function addTransaction($action, $method, $data, $tid, $packageKey, $subpackageKey) {
+		$transaction = $this->objectManager->create('F3\ExtJS\ExtDirect\Transaction', $this);
+
+		$transaction->setAction($action);
+		$transaction->setMethod($method);
+		$transaction->setData($data);
+		$transaction->setTid($tid);
+		$transaction->setPackageKey($packageKey);
+		$transaction->setSubpackageKey($subpackageKey);
+
+		$this->transactions[] = $transaction;
+	}
+
+	public function isFormPost() {
+		return $this->formPost;
+	}
+
+	public function setFormPost($formPost) {
+		$this->formPost = $formPost;
+	}
+
+	public function isFileUpload() {
+		return $this->fileUpload;
+	}
+
+	public function setFileUpload($fileUpload) {
+		$this->fileUpload = $fileUpload;
+	}
+
 
 }
-
 ?>
